@@ -1,0 +1,14 @@
+{
+  "name": "德州扑克之夜",
+  "short_name": "扑克之夜",
+  "description": "局域网多人德州扑克，电子发牌员语音播报",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14302a",
+  "theme_color": "#1b3a2f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

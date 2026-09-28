@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+package-lock.json
+
+# 隧道工具（不需要入库）
+tools/
+tunnel.sh
+tunnel-daemon.sh
+tunnel*.log
+tunnel-url.txt
+
+# 临时文件
+_*.json
+_*.js
+_*.py
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

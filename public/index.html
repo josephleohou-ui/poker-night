@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1b3a2f">
+<title>德州扑克之夜</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- ===== 大厅 ===== -->
+<div id="lobby" class="screen active">
+  <div class="lobby-card">
+    <div class="logo">
+      <span class="suit s1">♠</span><span class="suit s2">♥</span>
+      <h1>德州扑克之夜</h1>
+      <span class="suit s3">♦</span><span class="suit s4">♣</span>
+    </div>
+    <p class="tagline">局域网多人对战 · 电子发牌员</p>
+
+    <label class="field">
+      <span>你的昵称</span>
+      <input id="nickname" type="text" maxlength="12" placeholder="输入名字" autocomplete="off">
+    </label>
+
+    <button id="btnCreate" class="btn btn-primary big">创建房间</button>
+
+    <div class="divider"><span>或者</span></div>
+
+    <label class="field">
+      <span>房间号</span>
+      <input id="roomCodeInput" type="tel" inputmode="numeric" maxlength="5" placeholder="4位数字" autocomplete="off">
+    </label>
+    <button id="btnJoin" class="btn btn-secondary big">加入房间</button>
+
+    <button id="btnRules" class="btn-text">玩法规则 / 帮助</button>
+
+    <div class="opts">
+      <label class="field small">
+        <span>初始筹码</span>
+        <select id="optChips">
+          <option value="500">500</option>
+          <option value="1000" selected>1000</option>
+          <option value="2000">2000</option>
+          <option value="5000">5000</option>
+        </select>
+      </label>
+      <label class="field small">
+        <span>盲注 小/大</span>
+        <select id="optBlinds">
+          <option value="5,10">5 / 10</option>
+          <option value="10,20" selected>10 / 20</option>
+          <option value="25,50">25 / 50</option>
+          <option value="50,100">50 / 100</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint">小提示：把 iPad 横过来玩体验更好 🎴</p>
+  </div>
+</div>
+
+<!-- ===== 牌桌 ===== -->
+<div id="table" class="screen">
+  <div class="topbar">
+    <div class="tb-left">
+      <span class="chip-icon">🃏</span>
+      <span>房间 <b id="tbCode">----</b></span>
+    </div>
+    <div class="tb-center">
+      <span id="tbStreet">等待开始</span>
+    </div>
+    <div class="tb-right">
+      <button id="btnToggleSound" class="icon-btn" title="语音开关">🔊</button>
+      <button id="btnLeave" class="icon-btn" title="退出">✕</button>
+    </div>
+  </div>
+
+  <div class="felt">
+    <div class="board-area">
+      <div id="board" class="board"></div>
+      <div class="pot-area">
+        <span class="pot-label">底池</span>
+        <span id="potValue" class="pot-value">0</span>
+      </div>
+    </div>
+    <div id="seats" class="seats"></div>
+
+    <div id="resultBanner" class="result-banner"></div>
+  </div>
+
+  <div id="myPanel" class="my-panel">
+    <div class="my-hole" id="myHole"></div>
+    <div class="my-info">
+      <div class="my-name" id="myName">我</div>
+      <div class="my-chips"><span class="chip-icon">💰</span><span id="myChips">0</span></div>
+      <div class="my-hand" id="myHandName"></div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls"></div>
+</div>
+
+<!-- 发牌员弹窗 -->
+<div id="dealerToast" class="dealer-toast">
+  <div class="dt-avatar">🎩</div>
+  <div class="dt-text" id="dealerText"></div>
+</div>
+
+<!-- 聊天 -->
+<button id="btnChat" class="fab-chat">💬</button>
+<div id="chatPanel" class="chat-panel">
+  <div class="chat-head">聊天 <button id="chatClose">✕</button></div>
+  <div id="chatLog" class="chat-log"></div>
+  <div class="chat-input">
+    <input id="chatInput" type="text" maxlength="100" placeholder="说点什么…">
+    <button id="chatSend">发送</button>
+  </div>
+</div>
+
+<!-- 帮助 -->
+<div id="rulesModal" class="modal">
+  <div class="modal-box">
+    <h2>德州扑克玩法</h2>
+    <ol>
+      <li><b>发牌</b>：每人 2 张暗牌，只有自己看得见。</li>
+      <li><b>下注</b>：小盲/大盲先投注，然后按顺序行动——<b>弃牌 / 过牌 / 跟注 / 加注 / 全下</b>。</li>
+      <li><b>翻牌</b>：桌上发 3 张公共牌，再一轮下注。</li>
+      <li><b>转牌</b>：发第 4 张，再一轮下注。</li>
+      <li><b>河牌</b>：发第 5 张，最后一轮下注。</li>
+      <li><b>摊牌</b>：用 2 张手牌 + 5 张公共牌中选 5 张，组成最大牌型者赢。</li>
+    </ol>
+    <p class="rule-note">牌型大小：皇家同花顺 &gt; 同花顺 &gt; 四条 &gt; 葫芦 &gt; 同花 &gt; 顺子 &gt; 三条 &gt; 两对 &gt; 一对 &gt; 高牌</p>
+    <button id="rulesClose" class="btn btn-primary">明白了</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
