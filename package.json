@@ -1,23 +1,25 @@
 {
   "name": "poker-night",
-  "version": "1.0.0",
-  "description": "局域网多人德州扑克（iPad 友好，带电子发牌员语音）",
+  "version": "2.0.0",
+  "description": "多人德州扑克（iPad 友好 · 电子发牌员语音 · AI 对手 · 护眼主题）",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-poker.js && node test-e2e.js",
+    "test": "node test-poker.js && node test-ai.js && node test-ui.js && node test-ai-e2e.js",
     "test:rules": "node test-poker.js",
-    "test:e2e": "node test-e2e.js"
+    "test:ai": "node test-ai.js",
+    "test:ui": "node test-ui.js",
+    "test:e2e": "node test-ai-e2e.js"
   },
   "keywords": [
     "poker",
     "texas-holdem",
     "lan",
-    "ipad"
+    "ipad",
+    "ai-opponent"
   ],
   "license": "MIT",
   "dependencies": {
-    "cloudflared": "^0.7.3",
     "express": "^4.21.2",
     "qrcode-terminal": "^0.12.0",
     "socket.io": "^4.8.1"

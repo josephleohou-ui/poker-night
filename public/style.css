@@ -17,7 +17,31 @@
   --blue-info: #7ba7c9;   /* 柔和蓝（信息） */
   --shadow: rgba(0,0,0,.35);
   --radius: 14px;
+
+  /* ---- 主题系统变量（由 backdrops.js 动态改写，初值同深绿） ---- */
+  --felt: #1b3a2f;        /* 主题桌面主色 */
+  --glow-1: rgba(80,160,120,.16);   /* 环境光晕 1 */
+  --glow-2: rgba(30,80,60,.22);     /* 环境光晕 2 */
+  --accent: #7fc9a0;      /* 主题强调色 */
+  --theme-ink: #e8f0ea;   /* 主题文字色 */
+  --card: rgba(255,252,244,.96);
+  --bg-name: "深林绒布";
 }
+
+/* 背景切换的柔和过渡 */
+body { transition: background-color .5s ease; }
+body.bg-fading .table-wrap,
+body.bg-fading #lobby,
+body.bg-fading #table { opacity: .35; transition: opacity .42s ease; }
+
+/* 主题化的桌面背景（用主题变量叠加光晕，营造绒布质感） */
+.table-wrap {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 8%, var(--glow-1) 0%, transparent 62%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, var(--glow-2) 0%, transparent 60%),
+    linear-gradient(170deg, var(--felt) 0%, var(--felt-2) 100%) !important;
+}
+
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -37,7 +61,8 @@ html, body {
 #lobby {
   height: 100%; overflow-y: auto;
   display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at 50% 0%, #22493c 0%, var(--felt-2) 60%, #0d1f1a 100%);
+  background: radial-gradient(ellipse at 50% 0%, var(--glow-1) 0%, var(--felt-2) 60%, var(--felt-edge) 100%);
+  transition: background .55s ease;
   padding: 20px;
 }
 #lobby.active { display: flex; }
@@ -122,9 +147,13 @@ html, body {
 
 .felt {
   flex: 1 1 auto; position: relative; overflow: hidden;
+  /* 用主题变量驱动：切换背景时整张桌子跟着变（含绒布质感光晕） */
   background:
-    radial-gradient(ellipse at 50% 42%, #245045 0%, var(--felt-1) 45%, var(--felt-edge) 100%);
+    radial-gradient(ellipse 76% 58% at 50% 10%, var(--glow-1) 0%, transparent 60%),
+    radial-gradient(ellipse 88% 66% at 50% 100%, var(--glow-2) 0%, transparent 58%),
+    radial-gradient(ellipse at 50% 42%, var(--felt) 0%, var(--felt-2) 55%, var(--felt-edge) 100%);
   border-radius: 0;
+  transition: background .55s ease;
 }
 
 .board-area {
@@ -283,7 +312,7 @@ html, body {
 
 /* ---------------- 发牌员弹窗 ---------------- */
 .dealer-toast {
-  position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%;
+  position: fixed; top: calc(72px + env(safe-area-inset-top)); left: 50%;
   transform: translateX(-50%) translateY(-18px);
   background: rgba(10, 28, 24, .96);
   border: 1.5px solid rgba(217,178,106,.5);
@@ -292,12 +321,26 @@ html, body {
   font-size: 14.5px; max-width: 88vw;
   opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
   z-index: 40; box-shadow: 0 10px 32px rgba(0,0,0,.55);
+  /* 让弹窗浮在座位之上，避免被遮挡也避免压住头像 */
+  backdrop-filter: blur(8px);
 }
 .dealer-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .dt-avatar { font-size: 20px; }
 .dt-text { line-height: 1.4; }
 .dealer-toast.warn { border-color: rgba(194,86,74,.7); }
 .dealer-toast.win { border-color: var(--gold); background: rgba(30, 46, 30, .97); }
+
+/* 竖屏时空间紧张，让弹窗更靠近顶部工具栏，并略微缩小 */
+@media (orientation: portrait) {
+  .dealer-toast {
+    top: calc(64px + env(safe-area-inset-top));
+    padding: 9px 14px; font-size: 13.5px; max-width: 92vw;
+  }
+}
+/* 横屏矮屏（iPad 横屏）座位环更靠边，弹窗放低一点正好落在桌面中央空隙 */
+@media (orientation: landscape) and (max-height: 820px) {
+  .dealer-toast { top: calc(80px + env(safe-area-inset-top)); }
+}
 
 /* ---------------- 聊天 ---------------- */
 .fab-chat {
@@ -354,4 +397,84 @@ html, body {
   .seat { width: 96px; }
   .seat-name { font-size: 12px; }
   .card { width: 42px; height: 60px; }
+}
+
+/* ============================================
+   设置面板 / AI 列表 / 背景色板
+   ============================================ */
+.icon-btn.active { background: rgba(127,201,160,.24); border-color: var(--accent); }
+
+.set-group {
+  border-top: 1px solid rgba(244,239,228,.1);
+  padding: 14px 0 6px;
+}
+.set-group:first-of-type { border-top: none; padding-top: 4px; }
+.set-group h3 {
+  font-size: 14px; margin: 0 0 10px;
+  color: var(--accent); font-weight: 600; letter-spacing: .5px;
+}
+.set-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.set-label { font-size: 13.5px; color: var(--cream-dim); }
+.set-val {
+  font-size: 13px; color: var(--cream); min-width: 62px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.set-hint { font-size: 12px; color: var(--cream-dim); opacity: .7; margin: 4px 0 0; line-height: 1.5; }
+
+/* 音量滑块 */
+#setBgmVol {
+  flex: 1; min-width: 110px; height: 4px; border-radius: 3px;
+  background: rgba(244,239,228,.2); outline: none; -webkit-appearance: none;
+}
+#setBgmVol::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: pointer; border: 2px solid #16332c;
+}
+
+/* 背景色板 */
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.sw {
+  width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+  border: 2px solid transparent; padding: 0;
+  transition: transform .18s, border-color .18s;
+}
+.sw:hover { transform: scale(1.08); }
+.sw.active {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(127,201,160,.4);
+  transform: scale(1.1);
+}
+
+/* AI 列表 */
+.ai-list { margin-top: 8px; }
+.ai-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 9px;
+  background: rgba(244,239,228,.06); margin-bottom: 6px;
+}
+.ai-name { flex: 1; font-size: 13.5px; color: var(--cream); }
+.ai-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 20px;
+  background: rgba(127,201,160,.18); color: var(--accent);
+}
+.btn.tiny { padding: 4px 10px; font-size: 12px; min-height: auto; }
+
+/* AI 座位角标 */
+.ai-badge {
+  position: absolute; top: -4px; left: -4px;
+  font-size: 10px; padding: 1px 5px; border-radius: 8px;
+  background: var(--accent); color: #12281f; font-weight: 700;
+}
+
+/* 大厅 AI 选项组 */
+.field.small select { font-size: 14px; }
+
+/* 小屏适配设置面板 */
+@media (max-width: 420px) {
+  .modal-box { padding: 18px 16px; }
+  .set-row { gap: 7px; }
+  .sw { width: 32px; height: 32px; }
 }

@@ -13,6 +13,7 @@ const os = require('os');
 const express = require('express');
 const { Server } = require('socket.io');
 const { PokerGame, Player } = require('./poker');
+const ai = require('./ai');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -53,7 +54,7 @@ class Room {
     if (seat < 0) return null;
     // 生成稳定短 id（用于游戏逻辑）
     const pid = 'u' + Math.random().toString(36).slice(2, 8);
-    const m = { id: pid, name, seat, connected: true, socketId };
+    const m = { id: pid, name, seat, connected: true, socketId, isAI: false };
     this.members.set(socketId, m);
     this.rebuildPlayers();
     // 本手进行中进来的，先坐等下一手
@@ -61,6 +62,45 @@ class Room {
       const p = this.game.getPlayerById(pid);
       if (p) p.sittingOut = true;
     }
+    return m;
+  }
+
+  /** 添加一个 AI 玩家，返回成员对象（key 用 'ai:<id>' 占位，没有真实 socket） */
+  addAI(profileKey = null) {
+    if (this.members.size >= 9) return null;
+    const seat = this.freeSeat();
+    if (seat < 0) return null;
+    // 把本桌已有名字传进去，避免 AI 重名
+    const taken = [...this.members.values()].map(x => x.name);
+    const spec = ai.makeAI(profileKey, taken);
+    const m = {
+      id: spec.id,
+      name: spec.name,
+      seat,
+      connected: true,
+      socketId: null,          // AI 没有 socket
+      isAI: true,
+      profile: spec.profile,
+      profileLabel: spec.profileLabel,
+      thinkTimer: null,
+    };
+    this.members.set('ai:' + spec.id, m);
+    this.rebuildPlayers();
+    if (this.game.running) {
+      const p = this.game.getPlayerById(spec.id);
+      if (p) p.sittingOut = true;
+    }
+    return m;
+  }
+
+  /** 移除一个 AI。若轮到它行动则取消其定时器 */
+  removeAI(memberId) {
+    const key = 'ai:' + memberId;
+    const m = this.members.get(key);
+    if (!m) return null;
+    if (m.thinkTimer) clearTimeout(m.thinkTimer);
+    this.members.delete(key);
+    this.rebuildPlayers();
     return m;
   }
 
@@ -85,6 +125,11 @@ class Room {
       if (old) {
         p.chips = old.chips;
         p.sittingOut = old.sittingOut;
+      }
+      // 标记 AI，方便前端显示与服务器调度
+      if (m.isAI) {
+        p.isAI = true;
+        p.aiProfile = m.profile;
       }
       newPlayers.push(p);
     }
@@ -151,6 +196,110 @@ function checkAutoNext(room) {
   }, 8000);
 }
 
+/* ---------------- 发牌员播报辅助 ---------------- */
+function emitActionDealer(room, name, action, p) {
+  if (action === 'fold') dealerSay(room, `${name} 弃牌`, 'action');
+  else if (action === 'call') dealerSay(room, `${name} 跟注 ${p ? p.bet : ''}`, 'action');
+  else if (action === 'check') dealerSay(room, `${name} 过牌`, 'action');
+  else if (action === 'raise' || action === 'allin')
+    dealerSay(room, `${name} ${action === 'allin' ? '全下' : '加注到'} ${p ? p.bet : ''}`, 'action');
+}
+
+function emitStreetDealer(room, beforeStreet) {
+  const g = room.game;
+  if (g.street === beforeStreet || !g.board.length) return;
+  const names = ['', '翻牌', '转牌', '河牌'];
+  if (g.street >= 1 && g.street <= 3) {
+    dealerSay(room, `${names[g.street]}：${g.board.join(' ')}`, 'board');
+  }
+}
+
+function emitWinDealer(room) {
+  const g = room.game;
+  if (!g.running && g.lastWinners && g.lastWinners.length) {
+    const txt = g.lastWinners.map(w => `${w.name} 以${w.hand || '对手弃牌'}赢得 ${w.amount}`).join('，');
+    dealerSay(room, txt, 'win');
+  }
+}
+
+/* ---------------- AI 自动行动调度 ---------------- */
+/**
+ * 检查当前该谁行动；若是 AI，则延迟思考后自动出牌。
+ * 每次局面变化后调用（开局、人类行动后、AI 行动后）。
+ */
+function scheduleAI(room) {
+  const g = room.game;
+  if (!g.running) return;
+
+  const cur = g.getPlayerBySeat(g.currentSeat);
+  if (!cur) return;
+
+  // 找到对应的成员（AI 成员 key 是 'ai:<id>'）
+  let member = null;
+  for (const m of room.members.values()) {
+    if (m.id === cur.id) { member = m; break; }
+  }
+  if (!member || !member.isAI) return;      // 不是 AI，等人类操作
+  if (member.thinkTimer) return;            // 已在思考中，避免重复调度
+
+  // 模拟思考时间：0.9 ~ 2.2 秒，让节奏自然
+  const delay = 900 + Math.random() * 1300;
+  member.thinkTimer = setTimeout(() => {
+    member.thinkTimer = null;
+    if (!rooms.has(room.code)) return;
+    if (!g.running) return;
+    aiTakeTurn(room, member);
+  }, delay);
+}
+
+/** AI 执行一次决策 */
+function aiTakeTurn(room, member) {
+  const g = room.game;
+  const p = g.getPlayerById(member.id);
+  if (!p || p.seat !== g.currentSeat || !p.canAct) return;
+
+  const ctx = {
+    hole: p.hole.slice(),                       // 只给 AI 自己的底牌
+    board: g.board.slice(),
+    street: g.street,
+    pot: g.pot,
+    toCall: Math.max(0, g.currentBet - p.bet),
+    myBet: p.bet,
+    myChips: p.chips,
+    currentBet: g.currentBet,
+    minRaise: g.minRaise,
+    bigBlind: g.bigBlind,
+    activeOpps: Math.max(0, g.activePlayers().length - 1),
+    profile: member.profile || 'balanced',
+  };
+
+  let d;
+  try {
+    d = ai.decide(ctx);
+  } catch (e) {
+    d = { action: ctx.toCall > 0 ? 'fold' : 'check' };
+  }
+
+  const before = g.street;
+  let res = g.act(member.id, d.action, d.amount || 0);
+  // 极端情况下的兜底：动作被拒就弃牌/过牌，避免卡死牌局
+  if (!res.ok) {
+    res = g.act(member.id, ctx.toCall > 0 ? 'fold' : 'check', 0);
+  }
+
+  // 播报 AI 动作
+  if (res.ok) {
+    const ap = g.getPlayerById(member.id);
+    emitActionDealer(room, member.name, d.action, ap);
+    emitStreetDealer(room, before);
+    emitWinDealer(room);
+  }
+
+  broadcast(room);
+  if (g.running) scheduleAI(room);
+  else checkAutoNext(room);
+}
+
 function startNewHand(room) {
   const g = room.game;
   room.rebuildPlayers();
@@ -165,6 +314,8 @@ function startNewHand(room) {
   const blinds = g.players.filter(p => p.lastAction === '小盲' || p.lastAction === '大盲');
   dealerSay(room, `第 ${g.handNumber} 手，开始发牌。小盲 ${g.smallBlind}，大盲 ${g.bigBlind}`, 'deal');
   broadcast(room);
+  // 若该 AI 先行动，自动走
+  scheduleAI(room);
 }
 
 // ---------- Socket 事件 ----------
@@ -230,6 +381,38 @@ io.on('connection', (socket) => {
     if (room.game.running) return;
     if (room.autoNextTimer) { clearTimeout(room.autoNextTimer); room.autoNextTimer = null; }
     startNewHand(room);
+    // 若第一个行动者是 AI，自动开始
+    scheduleAI(room);
+  });
+
+  /* ---- AI 管理（仅房主） ---- */
+  socket.on('addAI', ({ profile } = {}, cb) => {
+    const room = getRoomOf(socket.id);
+    if (!room) return cb && cb({ ok: false, msg: '不在房间中' });
+    if (!room.isHost(socket.id)) return cb && cb({ ok: false, msg: '只有房主可以添加 AI' });
+    if (room.members.size >= 9) return cb && cb({ ok: false, msg: '房间已满（最多9人）' });
+    const m = room.addAI(profile || null);
+    if (!m) return cb && cb({ ok: false, msg: '没有空座位' });
+    dealerSay(room, `${m.name}（${m.profileLabel}）加入了牌桌`, 'join');
+    broadcast(room);
+    cb && cb({ ok: true, ai: { id: m.id, name: m.name, profile: m.profile, profileLabel: m.profileLabel } });
+  });
+
+  socket.on('removeAI', ({ id } = {}, cb) => {
+    const room = getRoomOf(socket.id);
+    if (!room) return cb && cb({ ok: false, msg: '不在房间中' });
+    if (!room.isHost(socket.id)) return cb && cb({ ok: false, msg: '只有房主可以移除 AI' });
+    const m = room.removeAI(id);
+    if (!m) return cb && cb({ ok: false, msg: '找不到该 AI' });
+    dealerSay(room, `${m.name} 离开了牌桌`, 'warn');
+    broadcast(room);
+    cb && cb({ ok: true });
+  });
+
+  socket.on('aiProfiles', (payload, cb) => {
+    cb && cb(Object.entries(ai.PROFILES).map(([k, v]) => ({
+      key: k, label: v.label, sample: v.namePool[0]
+    })));
   });
 
   socket.on('action', ({ action, amount } = {}, cb) => {
@@ -243,30 +426,16 @@ io.on('connection', (socket) => {
 
     const p = g.getPlayerById(m.id);
 
-    // 发牌员播报关键动作
-    if (action === 'fold') dealerSay(room, `${m.name} 弃牌`, 'action');
-    else if (action === 'call') dealerSay(room, `${m.name} 跟注 ${p.bet}`, 'action');
-    else if (action === 'check') dealerSay(room, `${m.name} 过牌`, 'action');
-    else if (action === 'raise' || action === 'allin')
-      dealerSay(room, `${m.name} ${action === 'allin' ? '全下' : '加注到'} ${p.bet}`, 'action');
-
-    // 街道推进播报
-    if (g.street !== before && g.board.length) {
-      const names = ['', '翻牌', '转牌', '河牌'];
-      if (g.street >= 1 && g.street <= 3) {
-        dealerSay(room, `${names[g.street]}：${g.board.join(' ')}`, 'board');
-      }
-    }
-
-    // 结算播报
-    if (!g.running && g.lastWinners && g.lastWinners.length) {
-      const txt = g.lastWinners.map(w => `${w.name} 以${w.hand || '对手弃牌'}赢得 ${w.amount}`).join('，');
-      dealerSay(room, txt, 'win');
-    }
+    emitActionDealer(room, m.name, action, p);
+    emitStreetDealer(room, before);
+    emitWinDealer(room);
 
     broadcast(room);
     cb && cb({ ok: true });
-    checkAutoNext(room);
+
+    // 轮到 AI 就让它自动出牌；否则检查是否该开下一手
+    if (g.running) scheduleAI(room);
+    else checkAutoNext(room);
   });
 
   socket.on('chat', ({ text } = {}) => {

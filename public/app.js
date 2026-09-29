@@ -125,6 +125,8 @@ function enterTable(res) {
   $('lobby').classList.remove('active');
   $('table').classList.add('active');
   $('tbCode').textContent = res.roomCode;
+  // 如果大厅里选了 AI 数量，建房时自动补上（服务器会校验只有房主能加）
+  if (window.AutoAddAI) setTimeout(() => window.AutoAddAI(), 300);
 }
 
 /* 断线重连 */
@@ -248,9 +250,10 @@ function renderSeats(s) {
 
     el.innerHTML = `
       <div class="seat-inner">
+        ${p.isAI ? '<div class="ai-badge">AI</div>' : ''}
         ${p.isDealer ? '<div class="badge-dealer">D</div>' : ''}
         ${p.allin ? '<div class="badge-allin">ALL IN</div>' : ''}
-        <div class="seat-name">${esc(p.name)}${p.id === ME.id ? ' (你)' : ''}</div>
+        <div class="seat-name">${p.isAI ? '🤖 ' : ''}${esc(p.name)}${p.id === ME.id ? ' (你)' : ''}</div>
         <div class="seat-chips">💰 ${p.chips}</div>
         ${cardsHtml}
         <div class="seat-action">${p.folded ? '已弃牌' : esc(p.lastAction || '')}</div>
@@ -291,6 +294,7 @@ function renderControls(s) {
     if (s.isHost) {
       const b = document.createElement('button');
       b.className = 'ctrl-btn host-btn';
+      b.id = 'btnStart';
       b.innerHTML = alive >= 2 ? '开始发牌 <span class="sub">房主操作</span>' : '等待玩家';
       b.disabled = alive < 2;
       b.onclick = () => socket.emit('startHand');
@@ -497,6 +501,197 @@ document.addEventListener('touchstart', function unlock() {
   } catch (e) {}
   document.removeEventListener('touchstart', unlock);
 }, { once: true });
+
+/* ==========================================================
+   新功能：BGM / 背景主题 / AI 对手管理
+   ========================================================== */
+
+/* ---------------- 初始化背景主题 ---------------- */
+try { BACKDROPS.init(); } catch (e) { console.warn('背景初始化失败', e); }
+
+/* ---------------- BGM ---------------- */
+let bgmStarted = false;
+
+function bgmSyncUI() {
+  const on = BGM.isPlaying();
+  $('btnToggleBGM').textContent = on ? '🎵' : '🔇';
+  $('btnToggleBGM').classList.toggle('active', on);
+  const st = $('setBgmToggle');
+  if (st) st.textContent = on ? '暂停' : '播放';
+}
+
+$('btnToggleBGM').onclick = () => {
+  BGM.toggle();
+  bgmSyncUI();
+  if (BGM.isPlaying()) dealerSay('背景音乐已开启', 'info');
+};
+
+// 音量/开关（设置面板）
+$('setBgmToggle').onclick = () => { BGM.toggle(); bgmSyncUI(); };
+$('setBgmVol').oninput = (e) => {
+  const v = parseInt(e.target.value, 10) / 100;
+  BGM.setVolume(v);
+  $('setBgmVolLabel').textContent = Math.round(v * 100) + '%';
+};
+
+// iPad/Safari：首次触摸时启动 BGM（自动播放策略要求用户交互）
+function tryAutoBGM() {
+  if (bgmStarted) return;
+  bgmStarted = true;
+  BGM.start();
+  bgmSyncUI();
+}
+document.addEventListener('touchend', tryAutoBGM, { once: true });
+document.addEventListener('click', tryAutoBGM, { once: true });
+
+/* ---------------- 背景主题 ---------------- */
+function bgSyncUI() {
+  const t = BACKDROPS.current();
+  const nm = $('setBgName');
+  if (nm) nm.textContent = t.name;
+  // 色板高亮
+  document.querySelectorAll('#setBgSwatches .sw').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === t.key);
+  });
+}
+
+$('btnNextBg').onclick = () => {
+  const t = BACKDROPS.next();
+  bgSyncUI();
+  dealerSay(`背景：${t.name}`, 'info');
+};
+$('setBgPrev').onclick = () => { BACKDROPS.prev(); bgSyncUI(); };
+$('setBgNext').onclick = () => { BACKDROPS.next(); bgSyncUI(); };
+$('setBgAuto').onchange = (e) => {
+  const m = parseInt(e.target.value, 10);
+  BACKDROPS.setAutoMinutes(m);
+  dealerSay(m > 0 ? `背景每 ${m} 分钟自动切换` : '背景自动切换已关闭', 'info');
+};
+
+// 生成色板
+(function buildSwatches() {
+  const wrap = $('setBgSwatches');
+  if (!wrap) return;
+  BACKDROPS.THEMES.forEach((t) => {
+    const b = document.createElement('button');
+    b.className = 'sw';
+    b.dataset.key = t.key;
+    b.title = t.name;
+    b.style.background = `linear-gradient(135deg, ${t.felt} 0%, ${t.felt2} 100%)`;
+    b.style.borderColor = t.accent;
+    b.onclick = () => { BACKDROPS.goTo(BACKDROPS.THEMES.indexOf(t)); bgSyncUI(); };
+    wrap.appendChild(b);
+  });
+  // 初始化面板状态
+  const autoSel = $('setBgAuto');
+  const cur = BACKDROPS.getAutoMinutes();
+  if (autoSel) autoSel.value = String([0,1,3,5,10].includes(cur) ? cur : 3);
+  const vol = BGM.getVolume();
+  if ($('setBgmVol')) { $('setBgmVol').value = String(Math.round(vol * 100)); }
+  if ($('setBgmVolLabel')) { $('setBgmVolLabel').textContent = Math.round(vol * 100) + '%'; }
+  bgSyncUI();
+  bgmSyncUI();
+})();
+
+/* ---------------- 设置面板 ---------------- */
+$('btnSettings').onclick = () => {
+  $('settingsModal').classList.add('open');
+  renderAIList();
+};
+$('settingsClose').onclick = () => $('settingsModal').classList.remove('open');
+$('settingsModal').onclick = (e) => {
+  if (e.target === $('settingsModal')) $('settingsModal').classList.remove('open');
+};
+
+// 语音开关也同步到设置面板
+const origVoiceToggle = $('btnToggleSound').onclick;
+$('btnToggleSound').onclick = (e) => {
+  origVoiceToggle(e);
+  const st = $('setVoiceToggle');
+  if (st) st.textContent = soundOn ? '开' : '关';
+};
+$('setVoiceToggle').onclick = () => { $('btnToggleSound').click(); };
+
+/* ---------------- AI 对手管理 ---------------- */
+$('setAddAI').onclick = () => {
+  const profile = $('setAIProfile').value || null;
+  socket.emit('addAI', { profile }, (res) => {
+    if (!res || !res.ok) {
+      dealerSay(res && res.msg ? res.msg : '添加 AI 失败', 'warn');
+      return;
+    }
+    dealerSay(`${res.ai.name} 加入了牌桌`, 'info');
+    renderAIList();
+  });
+};
+
+function renderAIList() {
+  const wrap = $('setAIList');
+  if (!wrap) return;
+  const ais = (STATE && STATE.players ? STATE.players : []).filter(p => p.isAI);
+  wrap.innerHTML = '';
+  if (!ais.length) {
+    wrap.innerHTML = '<p class="set-hint">还没有 AI 对手</p>';
+    return;
+  }
+  ais.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'ai-row';
+    const label = AI_PROFILE_LABELS[p.aiProfile] || p.aiProfile || '';
+    row.innerHTML = `<span class="ai-name">🤖 ${esc(p.name)}</span>
+                     <span class="ai-tag">${esc(label)}</span>`;
+    if (ME.isHost) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-danger tiny';
+      btn.textContent = '移除';
+      btn.onclick = () => {
+        socket.emit('removeAI', { id: p.id }, (res) => {
+          if (!res || !res.ok) { dealerSay(res && res.msg || '移除失败', 'warn'); return; }
+          renderAIList();
+        });
+      };
+      row.appendChild(btn);
+    }
+    wrap.appendChild(row);
+  });
+}
+
+const AI_PROFILE_LABELS = {
+  tight: '紧凶',
+  loose: '松凶',
+  passive: '保守',
+  maniac: '疯子',
+  balanced: '均衡',
+};
+
+// 状态更新时同步 AI 列表
+const _origOnState = socket.listeners('state');
+socket.on('state', () => setTimeout(renderAIList, 0));
+
+// 非房主隐藏 AI 管理
+setInterval(() => {
+  const g = $('setAIGroup');
+  if (g) g.style.display = ME.isHost ? '' : 'none';
+}, 1000);
+
+/* ---------------- 大厅：开局 AI 数量 ---------------- */
+// 建房/加入成功后自动补足所选数量的 AI（仅房主，服务器会校验权限）
+window.AutoAddAI = function AutoAddAI() {
+  const want = parseInt(($('optAICount') || {}).value || '0', 10);
+  if (!want || want <= 0) return;
+  const profile = ($('optAIProfile') || {}).value || null;
+  let i = 0;
+  const addNext = () => {
+    if (i >= want) return;
+    socket.emit('addAI', { profile }, (res) => {
+      if (res && res.ok) dealerSay(`${res.ai.name} 加入了牌桌`, 'info');
+      i++;
+      setTimeout(addNext, 180);
+    });
+  };
+  setTimeout(addNext, 350);
+};
+
 
 // 防止双指缩放干扰
 document.addEventListener('gesturestart', e => e.preventDefault());

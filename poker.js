@@ -536,6 +536,8 @@ class PokerGame {
       isDealer: p.seat === this.dealerSeat,
       isTurn: p.seat === this.currentSeat && this.running,
       holeCount: p.hole.length,
+      isAI: !!p.isAI,
+      aiProfile: p.aiProfile || null,
       // 只给自己、或摊牌时的存活玩家看牌
       hole: (me && p.id === me.id) || (showAll && p.inHand) ? p.hole.slice() : null,
       handName: p.handResult ? p.handResult.name : null,

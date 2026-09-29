@@ -59,6 +59,28 @@
           <option value="50,100">50 / 100</option>
         </select>
       </label>
+      <label class="field small">
+        <span>开局 AI 数量</span>
+        <select id="optAICount">
+          <option value="0" selected>0（纯真人）</option>
+          <option value="1">1 个</option>
+          <option value="2">2 个</option>
+          <option value="3">3 个</option>
+          <option value="4">4 个</option>
+          <option value="5">5 个</option>
+        </select>
+      </label>
+      <label class="field small">
+        <span>AI 性格</span>
+        <select id="optAIProfile">
+          <option value="" selected>随机混合</option>
+          <option value="tight">紧凶 · 牌好才打</option>
+          <option value="loose">松凶 · 疯狂加注</option>
+          <option value="passive">保守 · 跟注为主</option>
+          <option value="maniac">疯子 · 难以预测</option>
+          <option value="balanced">均衡 · 稳健职业</option>
+        </select>
+      </label>
     </div>
     <p class="hint">小提示：把 iPad 横过来玩体验更好 🎴</p>
   </div>
@@ -75,7 +97,10 @@
       <span id="tbStreet">等待开始</span>
     </div>
     <div class="tb-right">
-      <button id="btnToggleSound" class="icon-btn" title="语音开关">🔊</button>
+      <button id="btnToggleSound" class="icon-btn" title="发牌员语音开关">🔊</button>
+      <button id="btnToggleBGM" class="icon-btn" title="背景音乐开关">🎵</button>
+      <button id="btnNextBg" class="icon-btn" title="切换背景">🎨</button>
+      <button id="btnSettings" class="icon-btn" title="设置">⚙️</button>
       <button id="btnLeave" class="icon-btn" title="退出">✕</button>
     </div>
   </div>
@@ -122,6 +147,68 @@
   </div>
 </div>
 
+<!-- 设置面板 -->
+<div id="settingsModal" class="modal">
+  <div class="modal-box">
+    <h2>⚙️ 设置</h2>
+
+    <div class="set-group">
+      <h3>🎵 背景音乐</h3>
+      <div class="set-row">
+        <button id="setBgmToggle" class="btn btn-secondary">播放</button>
+        <input id="setBgmVol" type="range" min="0" max="100" value="35">
+        <span id="setBgmVolLabel" class="set-val">35%</span>
+      </div>
+      <p class="set-hint">轻柔爵士氛围乐，实时合成 · 不占流量</p>
+    </div>
+
+    <div class="set-group">
+      <h3>🎨 背景主题</h3>
+      <div class="set-row">
+        <button id="setBgPrev" class="btn btn-secondary">◀ 上一套</button>
+        <span id="setBgName" class="set-val">—</span>
+        <button id="setBgNext" class="btn btn-secondary">下一套 ▶</button>
+      </div>
+      <div class="set-row">
+        <span class="set-label">自动切换</span>
+        <select id="setBgAuto">
+          <option value="0">不自动</option>
+          <option value="1">每 1 分钟</option>
+          <option value="3" selected>每 3 分钟</option>
+          <option value="5">每 5 分钟</option>
+          <option value="10">每 10 分钟</option>
+        </select>
+      </div>
+      <div id="setBgSwatches" class="swatches"></div>
+    </div>
+
+    <div class="set-group">
+      <h3>🔊 发牌员语音</h3>
+      <div class="set-row">
+        <button id="setVoiceToggle" class="btn btn-secondary">开</button>
+      </div>
+    </div>
+
+    <div class="set-group" id="setAIGroup">
+      <h3>🤖 AI 对手（仅房主）</h3>
+      <div class="set-row">
+        <select id="setAIProfile">
+          <option value="">随机性格</option>
+          <option value="tight">紧凶</option>
+          <option value="loose">松凶</option>
+          <option value="passive">保守</option>
+          <option value="maniac">疯子</option>
+          <option value="balanced">均衡</option>
+        </select>
+        <button id="setAddAI" class="btn btn-primary">+ 添加 AI</button>
+      </div>
+      <div id="setAIList" class="ai-list"></div>
+    </div>
+
+    <button id="settingsClose" class="btn btn-primary">完成</button>
+  </div>
+</div>
+
 <!-- 帮助 -->
 <div id="rulesModal" class="modal">
   <div class="modal-box">
@@ -140,6 +227,8 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/bgm.js"></script>
+<script src="/backdrops.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
