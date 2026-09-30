@@ -568,6 +568,57 @@ $('setBgAuto').onchange = (e) => {
   dealerSay(m > 0 ? `背景每 ${m} 分钟自动切换` : '背景自动切换已关闭', 'info');
 };
 
+/* ---------------- 护眼显示（亮度 + 牌面柔化） ---------------- */
+const EYE = {
+  get bright() {
+    const v = parseInt(localStorage.getItem('poker_bright') || '100', 10);
+    return (v >= 55 && v <= 100) ? v : 100;
+  },
+  set bright(v) {
+    v = Math.max(55, Math.min(100, v | 0));
+    localStorage.setItem('poker_bright', String(v));
+    applyBright(v);
+  },
+  get soft() { return localStorage.getItem('poker_soft') === 'on'; },
+  set soft(on) {
+    localStorage.setItem('poker_soft', on ? 'on' : 'off');
+    applySoft(on);
+  },
+};
+
+function applyBright(v) {
+  const root = document.documentElement;
+  root.style.setProperty('--ui-bright', String(v / 100));
+  root.dataset.bright = v < 100 ? 'low' : 'full';
+}
+function applySoft(on) {
+  document.documentElement.dataset.cardSoft = on ? 'on' : 'off';
+}
+
+function eyeSyncUI() {
+  const b = EYE.bright;
+  if ($('setBright')) $('setBright').value = String(b);
+  if ($('setBrightLabel')) $('setBrightLabel').textContent = b + '%';
+  if ($('setCardSoft')) $('setCardSoft').textContent = EYE.soft ? '开' : '关';
+  applyBright(b);
+  applySoft(EYE.soft);
+}
+
+if ($('setBright')) {
+  $('setBright').oninput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    EYE.bright = v;
+    if ($('setBrightLabel')) $('setBrightLabel').textContent = v + '%';
+  };
+}
+if ($('setCardSoft')) {
+  $('setCardSoft').onclick = () => {
+    EYE.soft = !EYE.soft;
+    eyeSyncUI();
+    dealerSay(EYE.soft ? '牌面已柔化' : '牌面恢复标准', 'info');
+  };
+}
+
 // 生成色板
 (function buildSwatches() {
   const wrap = $('setBgSwatches');
@@ -591,6 +642,7 @@ $('setBgAuto').onchange = (e) => {
   if ($('setBgmVolLabel')) { $('setBgmVolLabel').textContent = Math.round(vol * 100) + '%'; }
   bgSyncUI();
   bgmSyncUI();
+  eyeSyncUI();
 })();
 
 /* ---------------- 设置面板 ---------------- */

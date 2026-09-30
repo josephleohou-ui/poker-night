@@ -5,11 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-poker.js && node test-ai.js && node test-ui.js && node test-ai-e2e.js",
+    "test": "node test-poker.js && node test-ai.js && node test-ui.js && node test-ai-e2e.js && node test-eye-bgm.js",
     "test:rules": "node test-poker.js",
     "test:ai": "node test-ai.js",
     "test:ui": "node test-ui.js",
-    "test:e2e": "node test-ai-e2e.js"
+    "test:e2e": "node test-ai-e2e.js",
+    "test:eye": "node test-eye-bgm.js"
   },
   "keywords": [
     "poker",

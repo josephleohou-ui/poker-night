@@ -7,8 +7,13 @@
   --felt-2: #14302a;      /* 桌面暗部 */
   --felt-edge: #0e241f;
   --wood: #3d2b1f;        /* 桌沿木色 */
-  --cream: #f4efe4;       /* 暖米白（卡片/文字） */
+  --cream: #f4efe4;       /* 暖米白（用于文字） */
   --cream-dim: #cfc8b8;
+  /* 牌面专用：暖象牙色，比纯白柔和很多（降低刺眼感） */
+  --card-face: #e8e0cd;
+  --card-face-2: #ddd3bd;   /* 渐变暗部，增加质感 */
+  --card-ink: #22201b;      /* 牌面文字（不用纯黑，柔和些） */
+  --card-red: #9e3b30;      /* 红花色：降低饱和度，不扎眼 */
   --gold: #d9b26a;        /* 柔和金 */
   --gold-dim: #a8863f;
   --ink: #1a1a17;
@@ -58,9 +63,13 @@ html, body {
 .screen.active { display: block; }
 
 /* ---------------- 大厅 ---------------- */
+/* 注意：这里不能直接写 display:flex，否则会盖过 .screen{display:none}
+   （ID 选择器优先级高于类选择器），导致大厅永远显示、压住牌桌。
+   所以基础状态用 display:none，只在 .active 时才 flex。 */
 #lobby {
   height: 100%; overflow-y: auto;
-  display: flex; align-items: center; justify-content: center;
+  display: none;
+  align-items: center; justify-content: center;
   background: radial-gradient(ellipse at 50% 0%, var(--glow-1) 0%, var(--felt-2) 60%, var(--felt-edge) 100%);
   transition: background .55s ease;
   padding: 20px;
@@ -202,9 +211,10 @@ html, body {
 }
 .badge-dealer {
   position: absolute; top: -9px; right: -7px;
-  background: var(--cream); color: var(--ink);
+  background: var(--gold); color: #2b2418;
   width: 21px; height: 21px; border-radius: 50%;
   font-size: 11px; font-weight: 800; line-height: 21px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
 }
 .badge-allin {
   position: absolute; top: -9px; left: -7px;
@@ -219,28 +229,33 @@ html, body {
   font-size: 10px; line-height: 30px; font-weight: 700; color: #fff;
 }
 
-/* 扑克牌 */
+/* 扑克牌 —— 暖象牙色，降低亮度，久看不累 */
 .card {
-  width: 50px; height: 70px; border-radius: 7px;
-  background: var(--cream);
-  color: var(--ink); position: relative;
+  width: 52px; height: 74px; border-radius: 7px;
+  background: linear-gradient(160deg, var(--card-face) 0%, var(--card-face-2) 100%);
+  color: var(--card-ink); position: relative;
   display: flex; flex-direction: column; justify-content: space-between;
-  padding: 4px 5px; font-weight: 700;
-  box-shadow: 0 3px 10px rgba(0,0,0,.35);
+  padding: 4px 5px; font-weight: 800;
+  /* 柔和描边 + 阴影：让牌在暗桌上"浮"起来，但不刺眼 */
+  border: 1px solid rgba(0,0,0,.22);
+  box-shadow: 0 3px 9px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.28);
   transition: transform .2s;
+  /* 触屏上防止双击缩放 */
+  touch-action: manipulation;
 }
-.card.small { width: 40px; height: 56px; border-radius: 6px; padding: 3px 4px; }
-.card.red { color: #b03a30; }
-.card .c-top { font-size: 13px; line-height: 1; }
-.card .c-bottom { font-size: 13px; line-height: 1; align-self: flex-end; transform: rotate(180deg); }
-.card .c-mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; opacity: .92; }
-.card.small .c-mid { font-size: 17px; }
-.card.small .c-top, .card.small .c-bottom { font-size: 10.5px; }
+.card.small { width: 42px; height: 60px; border-radius: 6px; padding: 3px 4px; }
+.card.red { color: var(--card-red); }
+.card .c-top { font-size: 14px; line-height: 1; letter-spacing: -.5px; }
+.card .c-bottom { font-size: 14px; line-height: 1; align-self: flex-end; transform: rotate(180deg); letter-spacing: -.5px; }
+.card .c-mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; opacity: .93; }
+.card.small .c-mid { font-size: 18px; }
+.card.small .c-top, .card.small .c-bottom { font-size: 11.5px; }
 .card.new { animation: dealIn .34s ease-out; }
 @keyframes dealIn { from { transform: translateY(-40px) scale(.7) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .card.back {
   background: repeating-linear-gradient(45deg, #24506f, #24506f 5px, #1c3f59 5px, #1c3f59 10px);
-  border: 1.5px solid rgba(255,255,255,.25);
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: 0 3px 9px rgba(0,0,0,.42);
 }
 .card.back .c-mid { font-size: 20px; opacity: .5; color: #fff; }
 .card.placeholder { background: transparent; box-shadow: none; border: 1.5px dashed rgba(244,239,228,.14); }
@@ -478,3 +493,41 @@ html, body {
   .set-row { gap: 7px; }
   .sw { width: 32px; height: 32px; }
 }
+
+/* ============================================
+   👁 护眼显示：全局亮度 + 牌面柔化
+   ============================================ */
+
+/* 屏幕亮度：用滤镜整体压暗，最有效的护眼手段 */
+html {
+  transition: filter .3s ease;
+}
+html[data-bright] {
+  /* 亮度值由 JS 写入 --ui-bright，默认 1 */
+  filter: brightness(var(--ui-bright, 1));
+}
+/* 亮度低于 100% 时，稍微提一点对比，避免发灰 */
+html[data-bright="low"] {
+  filter: brightness(var(--ui-bright, 1)) contrast(1.04);
+}
+
+/* 牌面柔化：进一步降低卡牌对比度，适合夜间 */
+html[data-card-soft="on"] {
+  --card-face: #ded5c0;
+  --card-face-2: #d2c7ae;
+  --card-ink: #3a352c;
+  --card-red: #8e4438;
+  --glow-1: rgba(80,160,120,.10);
+  --glow-2: rgba(30,80,60,.14);
+  --gold: #c4a05e;
+}
+html[data-card-soft="on"] .card {
+  box-shadow: 0 2px 7px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.2);
+}
+/* 柔化模式下庄家标记也不刺眼 */
+html[data-card-soft="on"] .badge-dealer {
+  background: #b8964f; color: #241f14;
+}
+
+/* 亮度条样式 */
+#setBright { flex: 1; }
