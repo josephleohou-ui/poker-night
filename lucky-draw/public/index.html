@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#141a20" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>幸运大转盘 · 抽奖</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="stage">
+  <header class="head">
+    <h1>幸运大转盘</h1>
+    <p class="sub">点一下中间的开始，看看今天的运气 🎡</p>
+  </header>
+
+  <div class="wheel-area">
+    <!-- 指针画在转盘上方，固定不动 -->
+    <div class="pointer" aria-hidden="true"></div>
+    <div class="wheel-wrap">
+      <canvas id="wheel" width="640" height="640"></canvas>
+      <button id="spinBtn" class="spin-btn" type="button">
+        <span class="spin-main">开始</span>
+        <span class="spin-sub">抽奖</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="result-card" id="resultCard" data-state="idle">
+    <div class="result-emoji" id="resultEmoji">🎁</div>
+    <div class="result-title" id="resultTitle">准备好了吗？</div>
+    <div class="result-tip" id="resultTip">一共 3 种奖项，祝你好运～</div>
+  </div>
+
+  <p class="footnote">每人可多次参与 · 奖项以实际发放为准</p>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

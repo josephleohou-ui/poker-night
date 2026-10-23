@@ -1,0 +1,15 @@
+# lucky-draw 部署配置
+# 用法：Render → New → Blueprint → 选本仓库 + 本分支（抽奖）
+services:
+  - type: web
+    name: lucky-draw
+    runtime: node
+    plan: free
+    region: singapore        # 主要用户在亚洲就用 singapore；欧洲改 frankfurt，美洲改 oregon
+    rootDir: lucky-draw      # 本项目在仓库的子目录里
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
