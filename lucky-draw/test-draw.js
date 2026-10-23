@@ -27,27 +27,27 @@ t('每个奖项都有配色(≥2) / emoji / tip', () => {
 
 console.log('\n【2】概率边界');
 t('rand=0 → 谢谢您的支持', () => assert.strictEqual(drawOnce(() => 0), 'thanks'));
-t('rand=0.8799 → 谢谢您的支持', () => assert.strictEqual(drawOnce(() => 0.8799), 'thanks'));
-t('rand=0.88 → 纸巾一包', () => assert.strictEqual(drawOnce(() => 0.88), 'tissue'));
-t('rand=0.9799 → 纸巾一包', () => assert.strictEqual(drawOnce(() => 0.9799), 'tissue'));
-t('rand=0.98 → 白酒一瓶', () => assert.strictEqual(drawOnce(() => 0.98), 'baijiu'));
+t('rand=0.8899 → 谢谢您的支持', () => assert.strictEqual(drawOnce(() => 0.8899), 'thanks'));
+t('rand=0.89 → 纸巾一包', () => assert.strictEqual(drawOnce(() => 0.89), 'tissue'));
+t('rand=0.9899 → 纸巾一包', () => assert.strictEqual(drawOnce(() => 0.9899), 'tissue'));
+t('rand=0.99 → 白酒一瓶', () => assert.strictEqual(drawOnce(() => 0.99), 'baijiu'));
 t('rand≈1 → 白酒一瓶（不越界为 undefined）', () => assert.strictEqual(drawOnce(() => 0.99999), 'baijiu'));
 
 console.log('\n【3】20 万次分布（允许 ±1.2% 误差）');
 const N = 200000;
 const tally = simulate(N);
 console.log('   ', JSON.stringify(tally));
-t('谢谢您的支持 ≈ 88%', () => {
+t('谢谢您的支持 ≈ 89%', () => {
   const r = tally.thanks / N;
-  assert.ok(Math.abs(r - 0.88) < 0.012, '实际 ' + (r * 100).toFixed(2) + '%');
+  assert.ok(Math.abs(r - 0.89) < 0.012, '实际 ' + (r * 100).toFixed(2) + '%');
 });
 t('纸巾一包 ≈ 10%', () => {
   const r = tally.tissue / N;
   assert.ok(Math.abs(r - 0.10) < 0.012, '实际 ' + (r * 100).toFixed(2) + '%');
 });
-t('白酒一瓶 ≈ 2%', () => {
+t('白酒一瓶 ≈ 1%', () => {
   const r = tally.baijiu / N;
-  assert.ok(Math.abs(r - 0.02) < 0.006, '实际 ' + (r * 100).toFixed(2) + '%');
+  assert.ok(Math.abs(r - 0.01) < 0.006, '实际 ' + (r * 100).toFixed(2) + '%');
 });
 t('三种结果都出现过', () => assert.ok(tally.thanks > 0 && tally.tissue > 0 && tally.baijiu > 0));
 
@@ -156,11 +156,11 @@ function req(port, method, p) {
     }
 
     const html = (await req(port, 'GET', '/')).body;
-    t('首页含三个奖项文案', () => {
-      // 文案由 JS 注入，这里确认引用了正确的脚本与样式
+    t('首页含三个奖项文案与副标题', () => {
       assert.ok(html.includes('app.js'));
       assert.ok(html.includes('style.css'));
       assert.ok(html.includes('幸运大转盘'));
+      assert.ok(html.includes('点赞AI安全测试平台，参与沟通交流抽奖～'), '副标题被改动');
     });
 
     const h = await req(port, 'GET', '/healthz');
